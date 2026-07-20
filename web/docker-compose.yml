@@ -1,0 +1,34 @@
+# Build MAME wasm/js targets with the emscripten/emsdk image.
+#
+# Usage (from repo root):
+#   docker compose -f web/docker-compose.yml build
+#   docker compose -f web/docker-compose.yml run --rm mame-wasm build
+#   docker compose -f web/docker-compose.yml run --rm mame-wasm serve
+#
+# Override machine / sources:
+#   SUBTARGET=abc806 SOURCES=src/mame/luxor/abc80x.cpp \
+#     docker compose -f web/docker-compose.yml run --rm mame-wasm build
+
+services:
+  mame-wasm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    working_dir: /src
+    volumes:
+      - ..:/src
+      # Persist emscripten ports/cache across runs (SDL2 etc.)
+      - emsdk-cache:/emsdk/upstream/emscripten/cache
+    environment:
+      SUBTARGET: ${SUBTARGET:-abc800c}
+      SOURCES: ${SOURCES:-src/mame/luxor/abc80x.cpp}
+      JOBS: ${JOBS:-8}
+      OPTIMIZE: ${OPTIMIZE:-s}
+    # Override per invocation, e.g. `run --rm mame-wasm bash web/build.sh`
+    command: ["bash", "-lc", "echo \"Use: docker compose run --rm mame-wasm bash web/build.sh\""]
+
+volumes:
+  emsdk-cache:

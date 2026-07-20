@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ABC 800 C — MAME WASM</title>
+  <style>
+    :root {
+      --bg: #0e1114;
+      --fg: #d7dde3;
+      --accent: #6cb6ff;
+      --muted: #8b949e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1a2430 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #182028 0%, transparent 50%),
+        var(--bg);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+      gap: 1rem;
+    }
+    header { text-align: center; max-width: 42rem; }
+    h1 {
+      margin: 0 0 0.35rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      font-size: 1.6rem;
+    }
+    p { margin: 0; color: var(--muted); line-height: 1.45; font-size: 0.95rem; }
+    a { color: var(--accent); }
+    .frame {
+      background: #000;
+      border: 1px solid #2a323c;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      line-height: 0;
+    }
+    canvas.emscripten {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      background: #000;
+    }
+    #status {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+    .hint {
+      max-width: 42rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    code { color: #c6d0da; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Luxor ABC 800 C</h1>
+    <p>MAME Emscripten / WebAssembly build (<code>abc800c</code>)</p>
+  </header>
+
+  <div class="frame">
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  </div>
+  <div id="status">Loading…</div>
+  <p class="hint">
+    Put <code>abc800c.zip</code> in the <code>roms/</code> folder next to this page, then reload.
+    Keys go to the canvas (click it first). Built with <code>web/run.sh build</code>.
+  </p>
+
+  <script>
+    var Module = {
+      arguments: ['abc800c', '-window', '-nomaximize', '-nofilter'],
+      canvas: (function () { return document.getElementById('canvas'); })(),
+      locateFile: function (path) {
+        // Resolve .wasm / sidecars next to this HTML.
+        return path;
+      },
+      print: function (text) {
+        console.log(text);
+      },
+      printErr: function (text) {
+        console.error(text);
+        var s = document.getElementById('status');
+        if (s) s.textContent = text;
+      },
+      setStatus: function (text) {
+        var s = document.getElementById('status');
+        if (s) s.textContent = text || 'Running';
+      },
+      onRuntimeInitialized: function () {
+        Module.setStatus('Running abc800c');
+        try { Module.canvas.focus(); } catch (e) {}
+      }
+    };
+    window.onerror = function (msg) {
+      Module.setStatus('Error: ' + msg);
+    };
+  </script>
+  <!-- Prefer the SUBTARGET-named bundle; fall back to mame.js copy from build.sh -->
+  <script>
+    (function () {
+      var candidates = ['abc800c.js', 'mame.js'];
+      function load(i) {
+        if (i >= candidates.length) {
+          Module.setStatus('Missing abc800c.js — run web/run.sh build');
+          return;
+        }
+        var s = document.createElement('script');
+        s.src = candidates[i];
+        s.onerror = function () { load(i + 1); };
+        s.onload = function () { Module.setStatus('Starting…'); };
+        document.body.appendChild(s);
+      }
+      load(0);
+    })();
+  </script>
+</body>
+</html>

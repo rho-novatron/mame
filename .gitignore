@@ -49,3 +49,15 @@ regtests/chdman/temp
 regtests/jedutil/output
 /CMakeLists.txt
 /samples
+
+# Emscripten / WASM build output
+web/dist/
+
+# Emscripten litter in tree root
+abc800c.js
+abc800c.html
+abc800c.wasm
+abc800c.worker.js
+abc806.js
+abc806.html
+abc806.wasm

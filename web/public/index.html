@@ -56,6 +56,24 @@
       max-width: 42rem;
       word-break: break-word;
     }
+    #log {
+      display: none;
+      width: min(42rem, 100%);
+      min-height: 8rem;
+      max-height: 16rem;
+      overflow: auto;
+      margin: 0;
+      padding: 0.75rem;
+      background: #0a0d10;
+      border: 1px solid #2a323c;
+      color: #c6d0da;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    body.diag #log { display: block; }
+    body.diag .frame { display: none; }
     .hint {
       max-width: 42rem;
       font-size: 0.85rem;
@@ -74,11 +92,13 @@
     <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
   </div>
   <div id="status">Loading…</div>
+  <pre id="log" aria-live="polite"></pre>
   <p class="hint">
     ROM ZIPs must live in <code>web/dist/abc800c/roms/</code> (not the repo-root
     <code>roms/</code> used by native <code>./abc</code>). Required:
     <code>abc800c.zip</code>, <code>saa5052.zip</code>, <code>abc800kb.zip</code>,
-    <code>abc830.zip</code>. Run <code>web/sync-roms.sh</code> to copy from repo
+    <code>abc830.zip</code>. Run <code>web/sync-roms.sh</code> to copy from repo.
+    Add <code>?diag=1</code> to verify ROMs without starting video (black canvas is normal there).
   </p>
 
   <script>
@@ -94,10 +114,18 @@
       ? new URLSearchParams(window.location.search)
       : new URLSearchParams();
     var DIAG = params.get('diag') === '1';
+    if (DIAG) document.body.classList.add('diag');
 
     function setStatus(text) {
       var s = document.getElementById('status');
       if (s) s.textContent = text;
+    }
+
+    function appendLog(text) {
+      var log = document.getElementById('log');
+      if (!log) return;
+      log.textContent += text + '\n';
+      log.scrollTop = log.scrollHeight;
     }
 
     function installRomPreloader() {
@@ -155,10 +183,14 @@
       ],
       canvas: (function () { return document.getElementById('canvas'); })(),
       locateFile: function (path) { return path; },
-      print: function (text) { console.log(text); },
+      print: function (text) {
+        console.log(text);
+        if (DIAG) appendLog(text);
+      },
       printErr: function (text) {
         console.error(text);
         setStatus(text);
+        if (DIAG) appendLog(text);
       },
       setStatus: function (text) {
         setStatus(text || 'Running');
@@ -171,8 +203,10 @@
         setStatus(left ? 'Loading… (' + done + '/' + Module.totalDependencies + ')' : 'All downloads complete');
       },
       onRuntimeInitialized: function () {
-        Module.setStatus('Running abc800c');
-        try { Module.canvas.focus(); } catch (e) {}
+        Module.setStatus(DIAG ? 'Verifying ROMs…' : 'Running abc800c');
+        if (!DIAG) {
+          try { Module.canvas.focus(); } catch (e) {}
+        }
       }
     };
 

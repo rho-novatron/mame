@@ -25,7 +25,16 @@ web/run.sh build
 web/run.sh serve          # http://127.0.0.1:8000/
 ```
 
-Open the page, place `roms/abc800c.zip` under `web/dist/abc800c/roms/`, reload.
+Copy ROMs into the serve tree (not repo-root `roms/`):
+
+```bash
+web/sync-roms.sh          # copies roms/*.zip → web/dist/abc800c/roms/
+web/run.sh serve
+```
+
+Required ZIPs for **abc800c**: `abc800c.zip`, `saa5052.zip`, `abc800kb.zip`, `abc830.zip`
+(the driver defaults to an abc830 floppy on the ABC bus). The page loader fetches
+these over HTTP into Emscripten's virtual `roms/` folder before MAME starts.
 
 ### Native emsdk setup (once)
 

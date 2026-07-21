@@ -65,9 +65,22 @@ cp -f web/public/index.html "${OUT_DIR}/index.html"
 mkdir -p "${OUT_DIR}/roms"
 if [[ ! -f "${OUT_DIR}/roms/README.txt" ]]; then
   cat > "${OUT_DIR}/roms/README.txt" <<'EOF'
-Place abc800c.zip (and any needed device ROMs) here.
-See hash/abc800.xml / the driver's ROM definitions for required files.
+WASM ROM folder (served over HTTP, then mounted into the browser build).
+
+This is NOT the same as repo-root roms/ used by native ./abc.
+Run:  web/sync-roms.sh
+
+Required for abc800c:
+  abc800c.zip   system ROMs
+  saa5052.zip   teletext character generator (device)
+  abc800kb.zip  keyboard MCU (device)
+  abc830.zip    default floppy controller on ABC bus (device)
 EOF
+fi
+# Convenience: if repo-root roms/ exists, refresh the serve copy.
+if [[ -d roms ]] && compgen -G "roms/*.zip" > /dev/null; then
+  echo "==> Syncing roms/*.zip from repo root into ${OUT_DIR}/roms/"
+  cp -f roms/*.zip "${OUT_DIR}/roms/"
 fi
 
 echo "==> Artifacts in ${OUT_DIR}:"

@@ -53,6 +53,8 @@
       font-size: 0.8rem;
       color: var(--muted);
       min-height: 1.2em;
+      max-width: 42rem;
+      word-break: break-word;
     }
     .hint {
       max-width: 42rem;
@@ -73,40 +75,80 @@
   </div>
   <div id="status">Loading…</div>
   <p class="hint">
-    Put <code>abc800c.zip</code> in the <code>roms/</code> folder next to this page, then reload.
-    Keys go to the canvas (click it first). Built with <code>web/run.sh build</code>.
+    ROM ZIPs must live in <code>web/dist/abc800c/roms/</code> (not the repo-root
+    <code>roms/</code> used by native <code>./abc</code>). Required:
+    <code>abc800c.zip</code>, <code>saa5052.zip</code>, <code>abc800kb.zip</code>,
+    <code>abc830.zip</code>. Run <code>web/sync-roms.sh</code> to copy from repo
   </p>
 
   <script>
+    // abc800c pulls in keyboard, teletext and default abc830 floppy device ROMs.
+    var REQUIRED_ROMS = [
+      'abc800c.zip',
+      'saa5052.zip',
+      'abc800kb.zip',
+      'abc830.zip'
+    ];
+
+    function setStatus(text) {
+      var s = document.getElementById('status');
+      if (s) s.textContent = text;
+    }
+
+    function installRomPreloader() {
+      Module.preRun = Module.preRun || [];
+      Module.preRun.push(function () {
+        try { FS.mkdir('/roms'); } catch (e) {}
+      });
+
+      Module.preRun.push(function () {
+        REQUIRED_ROMS.forEach(function (name) {
+          addRunDependency('rom:' + name);
+          fetch('roms/' + name)
+            .then(function (resp) {
+              if (!resp.ok) {
+                throw new Error('HTTP ' + resp.status + ' for roms/' + name);
+              }
+              return resp.arrayBuffer();
+            })
+            .then(function (buf) {
+              FS.writeFile('/roms/' + name, new Uint8Array(buf));
+              console.log('ROM loaded: /roms/' + name);
+            })
+            .catch(function (err) {
+              console.warn('ROM missing:', name, err);
+            })
+            .finally(function () {
+              removeRunDependency('rom:' + name);
+            });
+        });
+      });
+    }
+
     var Module = {
-      arguments: ['abc800c', '-window', '-nomaximize', '-nofilter'],
+      arguments: ['abc800c', '-rompath', 'roms', '-window', '-nomaximize', '-nofilter'],
       canvas: (function () { return document.getElementById('canvas'); })(),
-      locateFile: function (path) {
-        // Resolve .wasm / sidecars next to this HTML.
-        return path;
-      },
-      print: function (text) {
-        console.log(text);
-      },
+      locateFile: function (path) { return path; },
+      print: function (text) { console.log(text); },
       printErr: function (text) {
         console.error(text);
-        var s = document.getElementById('status');
-        if (s) s.textContent = text;
+        setStatus(text);
       },
       setStatus: function (text) {
-        var s = document.getElementById('status');
-        if (s) s.textContent = text || 'Running';
+        setStatus(text || 'Running');
       },
       onRuntimeInitialized: function () {
         Module.setStatus('Running abc800c');
         try { Module.canvas.focus(); } catch (e) {}
       }
     };
+
+    installRomPreloader();
+
     window.onerror = function (msg) {
       Module.setStatus('Error: ' + msg);
     };
   </script>
-  <!-- Prefer the SUBTARGET-named bundle; fall back to mame.js copy from build.sh -->
   <script>
     (function () {
       var candidates = ['abc800c.js', 'mame.js'];
@@ -118,7 +160,7 @@
         var s = document.createElement('script');
         s.src = candidates[i];
         s.onerror = function () { load(i + 1); };
-        s.onload = function () { Module.setStatus('Starting…'); };
+        s.onload = function () { Module.setStatus('Downloading ROMs…'); };
         document.body.appendChild(s);
       }
       load(0);

@@ -90,6 +90,11 @@
       'abc830.zip'
     ];
 
+    var params = (typeof window !== 'undefined' && window.location)
+      ? new URLSearchParams(window.location.search)
+      : new URLSearchParams();
+    var DIAG = params.get('diag') === '1';
+
     function setStatus(text) {
       var s = document.getElementById('status');
       if (s) s.textContent = text;
@@ -104,7 +109,12 @@
       Module.preRun.push(function () {
         REQUIRED_ROMS.forEach(function (name) {
           addRunDependency('rom:' + name);
-          fetch('roms/' + name)
+          // Use an absolute URL so this works even if index.html isn't served
+          // from the filesystem root.
+          var url = (typeof window !== 'undefined' && window.location)
+            ? new URL('roms/' + name, window.location.href)
+            : ('roms/' + name);
+          fetch(url)
             .then(function (resp) {
               if (!resp.ok) {
                 throw new Error('HTTP ' + resp.status + ' for roms/' + name);
@@ -117,6 +127,7 @@
             })
             .catch(function (err) {
               console.warn('ROM missing:', name, err);
+              setStatus('ROM fetch failed: ' + name);
             })
             .finally(function () {
               removeRunDependency('rom:' + name);
@@ -126,7 +137,22 @@
     }
 
     var Module = {
-      arguments: ['abc800c', '-rompath', 'roms', '-window', '-nomaximize', '-nofilter'],
+      // Normal run: render to canvas.
+      // diag=1: skip video, just verify ROMs so we can tell what fails.
+      arguments: DIAG ? [
+        'abc800c',
+        '-rompath', '/roms',
+        '-video', 'none',
+        '-sound', 'none',
+        '-verifyroms', 'abc800c',
+      ] : [
+        'abc800c',
+        '-rompath', '/roms',
+        '-window', '-nomaximize',
+        '-nofilter',
+        '-video', 'soft',
+        '-sound', 'none',
+      ],
       canvas: (function () { return document.getElementById('canvas'); })(),
       locateFile: function (path) { return path; },
       print: function (text) { console.log(text); },
@@ -136,6 +162,13 @@
       },
       setStatus: function (text) {
         setStatus(text || 'Running');
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: function (left) {
+        // Emscripten calls this with remaining dependencies.
+        if (!Module.totalDependencies) Module.totalDependencies = left;
+        var done = Module.totalDependencies - left;
+        setStatus(left ? 'Loading… (' + done + '/' + Module.totalDependencies + ')' : 'All downloads complete');
       },
       onRuntimeInitialized: function () {
         Module.setStatus('Running abc800c');
